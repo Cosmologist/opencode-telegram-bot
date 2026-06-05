@@ -72,7 +72,7 @@ function renderBlock(block: TelegramBlock): string {
         })
         .join("\n");
     case "code":
-      return `\`\`\`${escapeMarkdownV2Code(block.language ?? "")}\n${escapeMarkdownV2Code(block.text)}\n\`\`\``;
+      return `\`\`\`${escapeMarkdownV2Code(block.language ?? "text")}\n${escapeMarkdownV2Code(block.text)}\n\`\`\``;
     case "table": {
       if (block.rows.length === 0) {
         return "";

@@ -34,7 +34,7 @@ describe("summary/formatter", () => {
     const longText = "a".repeat(4500);
     const parts = formatSummaryWithMode(longText, "raw");
     expect(parts.length).toBeGreaterThan(1);
-    expect(parts[0].startsWith("```\n")).toBe(true);
+    expect(parts[0].startsWith("```text\n")).toBe(true);
     expect(parts[0].endsWith("\n```")).toBe(true);
   });
 
@@ -72,7 +72,7 @@ describe("summary/formatter", () => {
 
     expect(parts.length).toBeGreaterThan(1);
     expect(parts.every((part) => part.length <= 120)).toBe(true);
-    expect(parts[0].startsWith("```\n")).toBe(true);
+    expect(parts[0].startsWith("```text\n")).toBe(true);
     expect(parts[0].endsWith("\n```")).toBe(true);
   });
 

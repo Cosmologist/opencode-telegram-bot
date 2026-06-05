@@ -70,7 +70,7 @@ import { keyboardManager } from "../keyboard/manager.js";
 import { stopEventListening, subscribeToEvents } from "../opencode/events.js";
 import { opencodeReadyLifecycle } from "../opencode/ready-lifecycle.js";
 import { summaryAggregator } from "../summary/aggregator.js";
-import { formatToolInfo } from "../summary/formatter.js";
+import { detectCodeLanguage, formatToolInfo } from "../summary/formatter.js";
 import { renderSubagentCards } from "../summary/subagent-formatter.js";
 import { ToolMessageBatcher } from "../summary/tool-message-batcher.js";
 import { getCurrentSession } from "../session/manager.js";
@@ -203,6 +203,7 @@ const toolMessageBatcher = new ToolMessageBatcher({
     const keyboard = getCurrentReplyKeyboard();
 
     await botInstance.api.sendMessage(chatIdInstance, text, {
+      parse_mode: "MarkdownV2",
       disable_notification: true,
       ...(keyboard ? { reply_markup: keyboard } : {}),
     });
@@ -754,13 +755,33 @@ async function ensureEventSubscription(directory: string): Promise<void> {
     try {
       await toolCallStreamer.breakSession(fileInfo.sessionId, "tool_file_boundary");
 
-      const toolMessage = formatToolInfo(fileInfo);
-      const caption = prepareDocumentCaption(toolMessage || fileInfo.fileData.caption);
+      const content = fileInfo.fileData.buffer.toString("utf-8");
+      const filePath =
+        (fileInfo.input?.filePath as string | undefined) ||
+        (fileInfo.input?.path as string | undefined);
+      const language = detectCodeLanguage(filePath);
+      const fence = "```" + language + "\n";
+      const MAX_CHUNK = 3990;
+      const lines = content.split("\n");
+      let chunkLines: string[] = [];
+      let chunkLen = 0;
 
-      toolMessageBatcher.enqueueFile(fileInfo.sessionId, {
-        ...fileInfo.fileData,
-        caption,
-      });
+      for (const line of lines) {
+        const lineLen = line.length + 1;
+        if (chunkLines.length > 0 && chunkLen + lineLen > MAX_CHUNK) {
+          const chunk = chunkLines.join("\n");
+          toolMessageBatcher.enqueue(fileInfo.sessionId, fence + chunk + "\n```");
+          chunkLines = [];
+          chunkLen = 0;
+        }
+        chunkLines.push(line);
+        chunkLen += lineLen;
+      }
+
+      if (chunkLines.length > 0) {
+        const chunk = chunkLines.join("\n");
+        toolMessageBatcher.enqueue(fileInfo.sessionId, fence + chunk + "\n```");
+      }
     } catch (err) {
       logger.error("Failed to send file to Telegram:", err);
     }
